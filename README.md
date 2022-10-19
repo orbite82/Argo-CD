@@ -200,3 +200,88 @@ argocd-server: v2.1.5+a8a6fc8
 root@kubernetes-vm:~/workdir# argocd app list
 NAME  CLUSTER  NAMESPACE  PROJECT  STATUS  HEALTH  SYNCPOLICY  CONDITIONS  REPO  PATH  TARGET
 ```
+
+# 02 Create GitOps application
+
+Como o GitOps tem tudo a ver com Git, usaremos o Github para este exercício.
+
+O aplicativo de exemplo está em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/simple-app
+
+Objetivos
+Nesta faixa, isso é o que você aprenderá:
+
+Como funciona a interface do usuário do Argo CD
+Como funciona a CLI do Argo CD
+Como implantar e sincronizar aplicativos
+Aguarde enquanto inicializamos a VM para você e iniciamos o Kubernetes.
+
+Bem-vindo
+Nosso aplicativo de exemplo pode ser encontrado em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/simple-app
+
+Dê uma olhada nos manifestos do Kubernetes para entender o que vamos implantar. É um aplicativo muito simples com uma implantação e um serviço
+
+# Argo CD User interface
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+A interface do usuário começa vazia porque nada é implantado em nosso cluster. Clique no botão "New app" no canto superior esquerdo e preencha os seguintes detalhes:
+
+application name : demo
+project: default
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./simple-app
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+(este é o mesmo cluster onde o ArgoCD está instalado)
+Namespace: default
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar. A entrada do aplicativo aparecerá no painel principal. Clique nisso.
+
+Parabéns! Você configurou seu primeiro aplicativo com GitOps.
+
+No entanto, se você verificar seu cluster com:
+
+```
+kubectl get deployments
+```
+
+Você verá que nada foi implantado ainda. O cluster ainda está vazio. A mensagem "Out of sync"  significa essencialmente que
+
+O cluster está vazio
+O repositório Git tem um aplicativo
+Portanto, o estado do Git e o estado do cluster são diferentes.
+
+```
+root@kubernetes-vm:~/workdir# kubectl get deployments
+No resources found in default namespace.
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl get deployments
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+simple-deployment   1/1     1            1           13s
+```
+
+# Syncing an app
+
+Criamos nosso aplicativo no Argo CD, mas ele ainda não foi implantado, pois só existe no Git no momento. Precisamos dizer ao Argo CD para tornar o estado do Git igual ao estado do cluster.
+
+Visite a guia Argo CD UI e clique em seu aplicativo para ver todos os detalhes. Clique no botão "Sync button" e deixe todas as opções padrão em todas as opções. Por fim, clique no botão "Synchronize" na parte superior.
+
+O ArgoCD vê que o cluster está vazio e irá implantar sua aplicação para que o cluster tenha o mesmo estado que está no Git
+
+nosso aplicativo agora está implantado. Você pode verificar com:
+
+```
+kubectl get deployments
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl get deployments
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+simple-deployment   1/1     1            1           6m19s
+```
+
+e também visite a guia "Deployed App".
+
+```
+I am an application running in Kubernetes. Now at Version 1.0
+```
