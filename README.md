@@ -412,3 +412,165 @@ GROUP  KIND        NAMESPACE  NAME               STATUS  HEALTH       HOOK  MESS
        Service     default    simple-service     Synced  Healthy            service/simple-service created
 apps   Deployment  default    simple-deployment  Synced  Progressing        deployment.apps/simple-deployment created
 ```
+
+# 03 Sync both ways
+
+Você precisa ter uma conta do GitHub para este exercício.
+
+O aplicativo de exemplo está em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/simple-app. Fork este repositório em sua própria conta
+
+Objetivos
+Nesta faixa, isso é o que você aprenderá:
+
+Como alterar o aplicativo no Git e reimplantar
+Como o Argo CD detecta alterações entre o cluster e o Git
+Como fazer alterações no cluster e ver o diff
+Aguarde enquanto inicializamos a VM para você e iniciamos o Kubernetes.
+
+Bem-vindo
+Nosso aplicativo de exemplo pode ser encontrado em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/simple-app
+
+Certifique-se de bifurcá-lo para sua própria conta e não para o URL. Deve ser algo como:
+
+https://github.com/<seu usuário>/gitops-certification-examples/
+
+Dê uma olhada nos manifestos do Kubernetes para entender o que vamos implantar. É um aplicativo muito simples com uma implantação e um serviço
+
+Quando estiver pronto para prosseguir, pressione Avançar.
+
+https://github.com/orbite82/gitops-certification-examples
+
+Primeira implantação
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+A interface do usuário começa vazia porque nada é implantado em nosso cluster. Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes:
+
+nome do aplicativo: demonstração
+projeto: padrão
+URL do repositório: https://github.com/<seu usuário>/gitops-certification-examples
+caminho: ./simple-app
+Cluster: https://kubernetes.default.svc (este é o mesmo cluster onde o ArgoCD está instalado)
+Espaço de nomes: padrão
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar. A entrada do aplicativo aparecerá no painel principal. Clique nisso.
+
+Você deve ver o seguinte.
+
+Agora sincronize o aplicativo para garantir que ele seja implantado. Você deve ver o seguinte:
+
+You can also verify the application from the command line with:
+
+```
+root@kubernetes-vm:~/workdir# kubectl get deployments
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+simple-deployment   1/1     1            1           26s
+```
+
+# Deploy a new version
+
+Queremos implantar outra versão do nosso aplicativo. Vamos alterar o Git e ver como o Argo CD detecta a alteração.
+
+Execute um commit em seu arquivo simple-app/deployment.yml em sua própria conta (você pode usar o GitHub em outra guia para isso) e altere a tag do contêiner na linha 18 de v1.0 para v2.0
+
+Normalmente, o Argo CD verifica o estado entre o Git e o cluster a cada 3 minutos por conta própria. Apenas para acelerar as coisas, você deve clicar manualmente no aplicativo no painel do Argo CD e pressionar o botão "Atualizar"
+
+Você deve ver o seguinte.
+
+
+Aqui o Argo CD nos diz que o estado do Git não é mais o mesmo que o estado do cluster. Nas setas amarelas, você pode ver que de todos os componentes do Kubernetes a implantação agora é diferente. E assim toda a aplicação é diferente.
+
+Você pode clicar no botão "App diff" e ver a mudança exata. Ative a caixa de seleção "compact diff".
+
+# Detecting cluster changes
+
+Passo 1
+Vamos trazer o cluster de volta ao mesmo estado do Git. Clique no botão Sincronizar na interface do usuário para sincronizar o aplicativo com a nova versão.
+
+Você também pode executar o seguinte na CLI:
+
+´´´
+argocd app sync demo
+argocd app wait demo
+```
+
+```
+root@kubernetes-vm:~/workdir# argocd app sync demo
+TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS    HEALTH        HOOK  MESSAGE
+2022-10-19T20:44:18+00:00            Service     default        simple-service    Synced   Healthy              
+2022-10-19T20:44:18+00:00   apps  Deployment     default     simple-deployment  OutOfSync  Healthy              
+
+2022-10-19T20:44:18+00:00            Service     default        simple-service    Synced   Healthy              service/simple-service unchanged
+2022-10-19T20:44:18+00:00   apps  Deployment     default     simple-deployment  OutOfSync  Healthy              deployment.apps/simple-deployment unchanged
+
+Name:               demo
+Project:            default
+Server:             https://kubernetes.default.svc
+Namespace:          default
+URL:                https://localhost:30443/applications/demo
+Repo:               https://github.com/orbite82/gitops-certification-examples
+Target:             HEAD
+Path:               ./simple-app
+SyncWindow:         Sync Allowed
+Sync Policy:        <none>
+Sync Status:        Synced to HEAD (4bf6b92)
+Health Status:      Healthy
+
+Operation:          Sync
+Sync Revision:      4bf6b92050b78545104b2134bdf9b008a1e5ca89
+Phase:              Succeeded
+Start:              2022-10-19 20:44:18 +0000 UTC
+Finished:           2022-10-19 20:44:18 +0000 UTC
+Duration:           0s
+Message:            successfully synced (all tasks run)
+
+GROUP  KIND        NAMESPACE  NAME               STATUS  HEALTH   HOOK  MESSAGE
+       Service     default    simple-service     Synced  Healthy        service/simple-service unchanged
+apps   Deployment  default    simple-deployment  Synced  Healthy        deployment.apps/simple-deployment unchanged
+root@kubernetes-vm:~/workdir# argocd app wait demo
+
+Name:               demo
+Project:            default
+Server:             https://kubernetes.default.svc
+Namespace:          default
+URL:                https://localhost:30443/applications/demo
+Repo:               https://github.com/orbite82/gitops-certification-examples
+Target:             HEAD
+Path:               ./simple-app
+SyncWindow:         Sync Allowed
+Sync Policy:        <none>
+Sync Status:        Synced to HEAD (4bf6b92)
+Health Status:      Healthy
+
+Operation:          Sync
+Sync Revision:      4bf6b92050b78545104b2134bdf9b008a1e5ca89
+Phase:              Succeeded
+Start:              2022-10-19 20:44:18 +0000 UTC
+Finished:           2022-10-19 20:44:18 +0000 UTC
+Duration:           0s
+Message:            successfully synced (all tasks run)
+
+GROUP  KIND        NAMESPACE  NAME               STATUS  HEALTH   HOOK  MESSAGE
+       Service     default    simple-service     Synced  Healthy        service/simple-service unchanged
+apps   Deployment  default    simple-deployment  Synced  Healthy        deployment.apps/simple-deployment unchanged
+
+´´´
+Detectar mudanças no Git e aplicar é um cenário bem conhecido. A grande força do GitOps é que o Argo CD também funciona na direção oposta. Se você fizer alguma alteração no cluster, o Argo CD a detectará e novamente informará que algo está diferente entre o Git e seu cluster.
+
+Digamos que alguém altere manualmente as réplicas da implantação sem criar um Pull Request oficial (uma prática ruim em geral).
+
+Execute o seguinte
+
+```
+root@kubernetes-vm:~/workdir# kubectl scale --replicas=3 deployment simple-deployment
+deployment.apps/simple-deployment scaled
+```
+
+Normalmente, o Argo CD verifica o estado entre o Git e o cluster a cada 3 minutos por conta própria. Apenas para acelerar as coisas, você deve clicar manualmente no aplicativo no painel do Argo CD e pressionar o botão "Atualizar". Clique no botão "App diff" e ative a caixa de seleção "Compact Diff".
+
+Você deve ver o seguinte:
+
+O Argo CD detecta novamente a mudança entre os dois estados. Esse recurso é muito poderoso e você pode detectar facilmente o desvio de configuração entre seus ambientes.
+
+Terminar
+Clique em Verificar para terminar esta faixa.
+
+# 04 Sync strategies
