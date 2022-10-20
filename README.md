@@ -812,3 +812,5 @@ repository URL: https://github.com/your_github_account/gitops-certification-exam
 path: ./secret-app/manifests
 Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
 Namespace: default
+
+# Teste
