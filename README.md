@@ -574,3 +574,166 @@ Terminar
 Clique em Verificar para terminar esta faixa.
 
 # 04 Sync strategies
+
+Bem-vindo
+Nosso aplicativo de exemplo pode ser encontrado em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/sync-strategies
+
+Certifique-se de bifurcá-lo para sua própria conta e anote o URL. Deve ser algo como:
+
+https://github.com/<your user>/gitops-certification-examples/
+
+Dê uma olhada nos manifestos do Kubernetes para entender o que vamos implantar. É um aplicativo muito simples com uma implantação e um serviço
+
+Quando estiver pronto para prosseguir, pressione Avançar.
+
+# Auto-sync
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+A interface do usuário começa vazia porque nada é implantado em nosso cluster. Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes:
+
+application name : demo
+project: default
+SYNC POLICY: automatic
+repository URL: https://github.com/<your user>/gitops-certification-examples
+path: ./sync-strategies
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: default
+
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar. A entrada do aplicativo aparecerá no painel principal. Clique nisso.
+
+Como selecionamos a estratégia de sincronização automática, o Argo CD implantará automaticamente o aplicativo imediatamente (porque o estado do cluster não é o mesmo que o estado de confirmação)
+
+Você também pode verificar o aplicativo na linha de comando com:
+
+```
+kubectl get deployments
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl get deployments
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+simple-deployment   1/1     1            1           65s
+```
+
+# Deploy a new version with AutoSync
+
+Se você olhar para a guia "Aplicativo implantado", verá que nosso aplicativo está na versão 1.0
+
+Queremos implantar outra versão do nosso aplicativo. Vamos alterar o Git e ver como o Argo CD detecta a mudança e implanta automaticamente (já que definimos a estratégia de sincronização como automática).
+
+Execute uma confirmação em seu arquivo sync-strategies/deployment.yml em sua própria conta (você pode usar o GitHub em outra guia para isso) e altere a tag do contêiner na linha 18 de v1.0 para v2.0
+
+Normalmente, o Argo CD verifica o estado entre o Git e o cluster a cada 3 minutos por conta própria. Apenas para acelerar as coisas, você deve clicar manualmente no aplicativo no painel do Argo CD e pressionar o botão "Atualizar"
+
+Você deve ver o seguinte.
+
+O aplicativo já está implantado. Se você clicar no botão "atualizar" no canto superior direito da guia "Aplicativo implantado", verá que a versão 2 já está ativa.
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# Enabling self-heal
+
+Passo 1
+A sincronização automática implantará automaticamente seu aplicativo assim que o repositório Git for alterado. Mas se alguém fizer uma alteração manual no estado do cluster, o Argo CD não fará nada por padrão (ele ainda marcará o aplicativo como fora de sincronia).
+
+Você pode habilitar a opção de autorrecuperação para informar ao Argo CD para descartar quaisquer alterações feitas manualmente no cluster. Essa é uma grande vantagem, pois sempre torna seus ambientes à prova de balas contra alterações ad-hoc via kubectl.
+
+Execute o seguinte
+
+```
+kubectl scale --replicas=3 deployment simple-deployment
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl scale --replicas=3 deployment simple-deployment
+deployment.apps/simple-deployment scaled
+```
+
+Você alterou manualmente o cluster. Agora vá para o painel do Argo CD e clique no aplicativo. Na tela do aplicativo, clique no botão superior esquerdo "Detalhes do aplicativo".
+
+Role para baixo e encontre a "seção de política de sincronização". Clique no botão "Self-heal" para habilitá-lo. Responda ok para a caixa de diálogo de confirmação.
+
+A alteração manual será descartada e as réplicas voltarão a ser uma.
+
+Agora você pode tentar alterar qualquer coisa no cluster e todas as alterações sempre serão descartadas (pois não fazem parte do Git).
+
+Tente novamente no terminal.
+
+```
+kubectl scale --replicas=3 deployment simple-deployment
+kubectl get deployment simple-deployment
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl scale --replicas=3 deployment simple-deployment
+deployment.apps/simple-deployment scaled
+root@kubernetes-vm:~/workdir# kubectl get deployment simple-deployment
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+simple-deployment   1/1     1            1           10m
+```
+Você alterou manualmente o cluster. Agora vá para o painel do Argo CD e clique no aplicativo. Na tela do aplicativo, clique no botão superior esquerdo "Detalhes do aplicativo".
+
+Role para baixo e encontre a "seção de política de sincronização". Clique no botão "Self-heal" para habilitá-lo. Responda ok para a caixa de diálogo de confirmação.
+
+A alteração manual será descartada e as réplicas voltarão a ser uma.
+
+Agora você pode tentar alterar qualquer coisa no cluster e todas as alterações sempre serão descartadas (pois não fazem parte do Git).
+
+Tente novamente no terminal.
+
+```
+root@kubernetes-vm:~/workdir# kubectl scale --replicas=3 deployment simple-deployment
+deployment.apps/simple-deployment scaled
+root@kubernetes-vm:~/workdir# kubectl get deployment simple-deployment
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+simple-deployment   3/3     3            3           5m2s
+```
+
+Seu aplicativo sempre terá 1 pod implantado. Isso é o que o estado do Git diz e, portanto, o Argo CD automaticamente torna o estado do cluster o mesmo.
+
+Terminar
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# Enable auto-prune
+
+Mesmo depois de ativar a sincronização automática e a autorrecuperação, o Argo CD nunca excluirá recursos do cluster se você removê-los no Git.
+
+Para habilitar esse comportamento, você precisa habilitar a opção de remoção automática.
+
+Primeiro, faça um commit em seu repositório Git excluindo o arquivo sync-strategies/deployment.yml.
+
+Em seguida, clique no botão "Atualizar" no painel do ArgoCD. O ArgoCD detectará a alteração e marcará o aplicativo como "Fora de sincronia". Mas a implantação ainda estará lá.
+
+Você deve ver o seguinte.
+
+Você ainda pode ver a implantação com
+
+```
+kubectl get deployment simple-deployment
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl get deployment simple-deployment
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+simple-deployment   1/1     1            1           10m
+```
+
+Vá ao painel do Argo CD e clique no aplicativo. Na tela do aplicativo, clique no botão superior esquerdo "Detalhes do aplicativo".
+
+Role para baixo e encontre a "seção de política de sincronização". Clique no botão "Remover recursos" para habilitá-lo. Responda ok para a caixa de diálogo de confirmação.
+
+Feche a janela de configurações e clique novamente no botão "Atualizar" no aplicativo.
+
+Agora sua implantação será removida (já que ela não existe no Git).
+
+Verifique novamente:
+
+```
+kubectl get deployment
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl get deployment
+No resources found in default namespace.
+```
