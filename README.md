@@ -813,4 +813,120 @@ path: ./secret-app/manifests
 Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
 Namespace: default
 
-# Teste
+# Bem-vindo
+
+Até agora, em todos os desafios anteriores, você criou aplicativos por meio da interface do usuário do ArgoCD ou CLI. Um aplicativo ArgoCD é essencialmente uma combinação de um repositório git, um projeto Argo, várias opções de sincronização e outros valores.
+
+Esta informação não precisa ser confinada no próprio Argo CD. Ele pode ser modelado em um recurso do Kubernetes para que possa ser armazenado no Git e gerenciado com o GitOps também.
+
+Dê uma olhada em https://github.com/codefresh-contrib/gitops-certification-examples/blob/main/declarative/single-app/my-application.yml para um exemplo de aplicativo
+
+Quando estiver pronto para prosseguir, pressione Avançar.
+
+# ArgoCD declarative format
+
+Como nosso aplicativo ArgoCD agora é um recurso do Kubernetes, podemos tratá-lo como qualquer outro recurso do Kubernetes.
+
+Verificamos para você localmente o arquivo my-application.yml Aplique-o com
+
+```
+kubectl apply -f my-application.yml
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl apply -f my-application.yml
+application.argoproj.io/demo created
+```
+
+Também instalamos o Argo CD para você e você o vê na guia UI.
+
+Agora você deve ver o aplicativo já na interface do usuário do ArgoCD.
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# Use App of Apps
+
+Podemos excluir o aplicativo como qualquer outro recurso do Kubernetes
+
+```
+kubectl delete -f my-application.yml
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl delete -f my-application.yml
+application.argoproj.io "demo" deleted
+```
+
+After a while the application should disappear from the ArgoCD UI.
+
+Remember however that the whole point of GitOps is to avoid manual kubectl commands. We want to store this application manifest in Git. And if we store it in Git, we can handle it like another GitOps application!
+
+ArgoCD can manage any kind of Kubernetes resources and this includes its own applications (inception).
+
+So we can commit multiple applications in Git and pass them to ArgoCD like any other kind of manifest. This means that we can handle multiple applications as a single one.
+
+We already have such example at https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/declarative/multiple-apps.
+
+In the ArgoCD UI, click the "New app" button on the top left and fill the following details:
+
+application name : 3-apps
+project: default
+SYNC POLICY: automatic
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./declarative/multiple-apps
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: argocd
+
+Observe que o valor do namespace é o namespace no qual o aplicativo pai é implantado e não o namespace no qual os aplicativos individuais são implantados. Os aplicativos ArgoCD devem ser implantados no mesmo namespace que o próprio ArgoCD.
+
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar.
+
+O ArgoCD implantará o aplicativo pai e seus 3 filhos. Clique no aplicativo pai. Você deve ver o seguinte.
+
+Passe algum tempo na interface do usuário para entender onde cada aplicativo é implantado. Você também pode usar a linha de comando
+
+```
+kubectl get all -n demo1
+kubectl get all -n demo2
+kubectl get all -n demo3
+```
+
+´´´
+root@kubernetes-vm:~/workdir# kubectl get all -n demo1
+NAME                                    READY   STATUS    RESTARTS   AGE
+pod/simple-deployment-9d88c574d-sbcrx   1/1     Running   0          80s
+
+NAME                     TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+service/simple-service   ClusterIP   10.43.253.166   <none>        80/TCP    80s
+
+NAME                                READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/simple-deployment   1/1     1            1           80s
+
+NAME                                          DESIRED   CURRENT   READY   AGE
+replicaset.apps/simple-deployment-9d88c574d   1         1         1       80s
+root@kubernetes-vm:~/workdir# kubectl get all -n demo2
+NAME                                    READY   STATUS    RESTARTS   AGE
+pod/simple-deployment-9d88c574d-q5xj6   1/1     Running   0          80s
+
+NAME                     TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+service/simple-service   ClusterIP   10.43.11.142   <none>        80/TCP    80s
+
+NAME                                READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/simple-deployment   1/1     1            1           80s
+
+NAME                                          DESIRED   CURRENT   READY   AGE
+replicaset.apps/simple-deployment-9d88c574d   1         1         1       80s
+root@kubernetes-vm:~/workdir# kubectl get all -n demo3
+NAME                                    READY   STATUS    RESTARTS   AGE
+pod/simple-deployment-9d88c574d-hqhn4   1/1     Running   0          83s
+
+NAME                     TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+service/simple-service   ClusterIP   10.43.231.14   <none>        80/TCP    83s
+
+NAME                                READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/simple-deployment   1/1     1            1           83s
+
+NAME                                          DESIRED   CURRENT   READY   AGE
+replicaset.apps/simple-deployment-9d88c574d   1         1         1       83s
+```
+
