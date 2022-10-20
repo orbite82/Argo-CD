@@ -891,7 +891,7 @@ kubectl get all -n demo2
 kubectl get all -n demo3
 ```
 
-´´´
+```
 root@kubernetes-vm:~/workdir# kubectl get all -n demo1
 NAME                                    READY   STATUS    RESTARTS   AGE
 pod/simple-deployment-9d88c574d-sbcrx   1/1     Running   0          80s
@@ -930,3 +930,142 @@ NAME                                          DESIRED   CURRENT   READY   AGE
 replicaset.apps/simple-deployment-9d88c574d   1         1         1       83s
 ```
 
+# 07 Using Helm with ArgoCD
+
+Bem-vindo
+Nosso aplicativo de exemplo pode ser encontrado em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/helm-app
+
+Dê uma olhada nos gráficos do Helm para entender o que vamos implantar. É um aplicativo muito simples com uma implantação e um serviço. O modelo do Ingress no gráfico está desabilitado por padrão.
+
+Quando estiver pronto para prosseguir, pressione Avançar.
+
+# Using the ArgoCD GUI
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+A interface do usuário começa vazia porque nada é implantado em nosso cluster. Clique no botão "NOVO APP" no canto superior esquerdo e preencha os seguintes detalhes:
+
+application name : helm-gitops-example
+project: default
+sync policy: automatic
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./helm-app/
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: default
+
+Deixe todos os outros valores vazios ou com seleções padrão. Observe que, no caso de gráficos do Helm, você também pode substituir valores específicos na parte inferior da caixa de diálogo. Isso é totalmente opcional, pois nosso gráfico Helm já possui o arquivo values.yaml correto.
+
+Por fim, clique no botão Criar. A entrada do aplicativo aparecerá no painel principal. Clique nisso.
+
+Parabéns! Você configurou seu primeiro aplicativo Helm com o GitOps. Você deve ver o seguinte:
+
+Você pode verificar a implantação com
+
+```
+kubectl get deployment
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl get deployment
+NAME                               READY   UP-TO-DATE   AVAILABLE   AGE
+helm-gitops-example-helm-example   1/1     1            1           39s
+```
+
+Observe que, se você usar qualquer um dos comandos do leme, como a lista do leme, não verá nada. Um gráfico do Helm implantado pelo ArgoCD não é mais registrado como uma implantação do Helm. Isso ocorre porque o ArgoCD não inclui as informações de carga útil do Helm. Ao implantar um aplicativo Helm, o Argo CD executa o "modelo de leme" e implanta os manifestos resultantes.
+
+# Using ArgoCD CLI
+
+Passo 1
+Além da interface do usuário, o ArgoCD também possui uma CLI. Já instalamos o cli para você e autenticamos na instância.
+
+Tente os seguintes comandos
+
+```
+argocd app list
+argocd app get helm-gitops-example
+argocd app history helm-gitops-example
+```
+
+```
+root@kubernetes-vm:~/workdir# argocd app list
+NAME                 CLUSTER                         NAMESPACE  PROJECT  STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO                                                                PATH         TARGET
+helm-gitops-example  https://kubernetes.default.svc  default    default  Synced  Healthy  Auto        <none>      https://github.com/codefresh-contrib/gitops-certification-examples  ./helm-app/  HEAD
+
+root@kubernetes-vm:~/workdir# argocd app get helm-gitops-example
+Name:               helm-gitops-example
+Project:            default
+Server:             https://kubernetes.default.svc
+Namespace:          default
+URL:                https://localhost:30443/applications/helm-gitops-example
+Repo:               https://github.com/codefresh-contrib/gitops-certification-examples
+Target:             HEAD
+Path:               ./helm-app/
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated
+Sync Status:        Synced to HEAD (c89b02b)
+Health Status:      Healthy
+
+GROUP  KIND            NAMESPACE  NAME                              STATUS  HEALTH   HOOK  MESSAGE
+       ServiceAccount  default    helm-gitops-example-helm-example  Synced                 serviceaccount/helm-gitops-example-helm-example created
+       Service         default    helm-gitops-example-helm-example  Synced  Healthy        service/helm-gitops-example-helm-example created
+apps   Deployment      default    helm-gitops-example-helm-example  Synced  Healthy        deployment.apps/helm-gitops-example-helm-example created
+
+root@kubernetes-vm:~/workdir# argocd app history helm-gitops-example
+ID  DATE                           REVISION
+0   2022-10-20 19:12:50 +0000 UTC  HEAD (c89b02b)
+```
+Vamos excluir o aplicativo e implantá-lo novamente, mas desta vez a partir da CLI.
+
+Primeiro exclua o aplicativo
+
+```
+argocd app delete helm-gitops-example
+```
+
+```
+root@kubernetes-vm:~/workdir# argocd app delete helm-gitops-example
+Are you sure you want to delete 'helm-gitops-example' and all its resources? [y/n]
+y
+```
+
+Confirme a exclusão respondendo sim no terminal. O aplicativo desaparecerá do painel do Argo CD após alguns minutos.
+
+Agora implante-o novamente.
+
+```
+root@kubernetes-vm:~/workdir# argocd app create demo \
+> --project default \
+> --repo https://github.com/codefresh-contrib/gitops-certification-examples \
+> --path "./helm-app/" \
+> --sync-policy auto \
+> --dest-namespace default \
+> --dest-server https://kubernetes.default.svc
+application 'demo' created
+```
+
+O aplicativo aparecerá novamente no painel do ArgoCD.
+
+Confirme a implantação
+
+```
+kubectl get all
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl get all
+NAME                                     READY   STATUS    RESTARTS   AGE
+pod/demo-helm-example-5546f55d74-27gs9   1/1     Running   0          43s
+
+NAME                        TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes          ClusterIP   10.43.0.1    <none>        443/TCP   10m
+service/demo-helm-example   ClusterIP   10.43.23.0   <none>        80/TCP    43s
+
+NAME                                READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/demo-helm-example   1/1     1            1           43s
+
+NAME                                           DESIRED   CURRENT   READY   AGE
+replicaset.apps/demo-helm-example-5546f55d74   1         1         1       43s
+```
+
+Terminar
+Se você confirmou a implantação, clique em Verificar para concluir esta faixa.
