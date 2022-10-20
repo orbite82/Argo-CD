@@ -737,3 +737,78 @@ kubectl get deployment
 root@kubernetes-vm:~/workdir# kubectl get deployment
 No resources found in default namespace.
 ```
+
+# 05 Secrets with GitOps
+
+Bem-vindo
+Nosso aplicativo de exemplo pode ser encontrado em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/secret-app
+
+Certifique-se de bifurcá-lo para sua própria conta e anote o URL. Deve ser algo como:
+
+https://github.com/<seu usuário>/gitops-certification-examples/
+
+Dê uma olhada nos manifestos do Kubernetes em secret-app/manifests/ para entender o que vamos implantar.
+
+É um aplicativo muito simples com uma implantação e um serviço que também precisa de dois arquivos de segredos (para conexão db e certificado paypal) que são passados ​​para o aplicativo como arquivos em /secrets/.
+
+Os dois segredos são armazenados nos arquivos db-creds-encrypted.yaml e paypal-cert-encrypted.yaml Esses arquivos estão vazios no repositório Git porque queremos criptografá-los primeiro.
+
+Você também pode ver o código-fonte completo em source-code-secrets se quiser entender como o aplicativo está carregando segredos de arquivos.
+
+Quando estiver pronto para prosseguir, pressione Avançar.
+
+# Install the Sealed Secrets controller
+
+Colocamos os segredos brutos/não criptografados em seu diretório de trabalho que são necessários para o aplicativo. Você pode ver os arquivos na guia Editor.
+
+Esses segredos são segredos simples do Kubernetes e não são criptografados de forma alguma. Vamos instalar o controlador de segredos selados da Bitnami para criptografar nossos segredos.
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+A interface do usuário começa vazia porque nada é implantado em nosso cluster. Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes:
+
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar. O controlador será instalado no cluster.
+
+Observe que estão usando um namespace específico para o controlador e não o padrão. É imperativo entrar no sistema kube, caso contrário, o controlador de segredos não funcionará.
+
+Você pode ver que o GitOps não é útil apenas para seus próprios aplicativos, mas também para outros aplicativos de suporte.
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# Use Kubeseal to encrypt secretsb
+
+O controlador Sealed Secrets está em execução agora no cluster e está pronto para descriptografar segredos.
+
+Agora precisamos criptografar nossos segredos e enviá-los para o git. A criptografia acontece com o executável kubeseal. Ele precisa ser instalado da mesma maneira que o kubectl. Ele reutiliza a autenticação de cluster já usada pelo kubectl.
+
+Já instalamos o kubeseal para você neste exercício. Você pode usá-lo imediatamente para criptografar seus segredos simples do Kubernetes e convertê-los em segredos criptografados
+
+Execute o seguinte
+
+```
+kubeseal < unsealed_secrets/db-creds.yml > sealed_secrets/db-creds-encrypted.yaml -o yaml
+kubeseal < unsealed_secrets/paypal-cert.yml > sealed_secrets/paypal-cert-encrypted.yaml -o yaml
+```
+
+Agora você tem segredos criptografados. Abra os arquivos na guia "Editor" e copie o conteúdo em sua área de transferência.
+
+Em seguida, vá para a interface do usuário do Github em outra guia do navegador e confirme/envie seu conteúdo em seu próprio fork do aplicativo, preenchendo os arquivos vazios em gitops-certification-examples/secret-app/manifests/db-creds-encrypted.yaml e gitops- certificate-examples/secret-app/manifests/paypal-cert-encrypted.yaml
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# Deploy secrets
+
+Passo 1
+Agora que todos os nossos segredos estão no Git de forma criptografada, podemos implantar nosso aplicativo normalmente.
+
+Faça login na interface do usuário do Argo CD.
+
+Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes:
+
+application name : demo
+project: default
+SYNC POLICY: automatic
+repository URL: https://github.com/your_github_account/gitops-certification-examples
+path: ./secret-app/manifests
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: default
