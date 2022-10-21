@@ -1069,3 +1069,370 @@ replicaset.apps/demo-helm-example-5546f55d74   1         1         1       43s
 
 Terminar
 Se você confirmou a implantação, clique em Verificar para concluir esta faixa.
+
+
+# 08 Using Kustomize with ArgoCD
+
+Bem-vindo
+Nosso aplicativo de exemplo pode ser encontrado em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/kustomize-app
+
+Dê uma olhada nas pastas base e overlays para entender o que vamos implantar. É um aplicativo muito simples com 2 ambientes para implantação: preparação e produção.
+
+Os ambientes diferem em vários aspectos como número de réplicas, banco de dados utilizado, rede etc.
+
+Quando estiver pronto para prosseguir, pressione Avançar.
+
+# Using the ArgoCD GUI
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+A interface do usuário começa vazia porque nada é implantado em nosso cluster. Clique no botão "NOVO APP" no canto superior esquerdo e preencha os seguintes detalhes:
+Abrir no Google T
+
+application name : kustomize-gitops-example
+project: default
+sync policy: automatic
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./kustomize-app/overlays/staging
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: default
+
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar. A entrada do aplicativo aparecerá no painel principal. Clique nisso.
+
+Parabéns! Você configurou seu primeiro aplicativo Kustomize com GitOps.
+
+Você deve ver o seguinte.
+
+Aguarde algum tempo para o aplicativo iniciar e, em seguida, visite o "Aplicativo implantado" para vê-lo em execução. Você verá que ele carregou o valor de teste para o banco de dados.
+
+# Using ArgoCD CLI
+
+Passo 1
+Além da interface do usuário, o ArgoCD também possui uma CLI. Já instalamos o cli para você e autenticamos na instância.
+
+Tente os seguintes comandos
+
+```
+argocd app list
+argocd app get kustomize-gitops-example
+argocd app history kustomize-gitops-example
+```
+
+```
+root@kubernetes-vm:~/workdir# argocd app list
+NAME                      CLUSTER                         NAMESPACE  PROJECT  STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO                                                                PATH                              TARGET
+kustomize-gitops-example  https://kubernetes.default.svc  default    default  Synced  Healthy  Auto        <none>      https://github.com/codefresh-contrib/gitops-certification-examples  ./kustomize-app/overlays/staging  HEAD
+root@kubernetes-vm:~/workdir# argocd app get kustomize-gitops-example
+Name:               kustomize-gitops-example
+Project:            default
+Server:             https://kubernetes.default.svc
+Namespace:          default
+URL:                https://localhost:30443/applications/kustomize-gitops-example
+Repo:               https://github.com/codefresh-contrib/gitops-certification-examples
+Target:             HEAD
+Path:               ./kustomize-app/overlays/staging
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated
+Sync Status:        Synced to HEAD (c89b02b)
+Health Status:      Healthy
+
+GROUP  KIND        NAMESPACE  NAME                    STATUS  HEALTH   HOOK  MESSAGE
+       ConfigMap   default    staging-the-map         Synced                 configmap/staging-the-map created
+       Service     default    staging-demo            Synced  Healthy        service/staging-demo created
+apps   Deployment  default    staging-the-deployment  Synced  Healthy        deployment.apps/staging-the-deployment created
+root@kubernetes-vm:~/workdir# argocd app history kustomize-gitops-example
+ID  DATE                           REVISION
+0   2022-10-20 20:16:08 +0000 UTC  HEAD (c89b02b)
+```
+
+Vamos excluir o aplicativo e implantá-lo novamente, mas desta vez a partir da CLI.
+
+Primeiro exclua o aplicativo
+
+```
+argocd app delete kustomize-gitops-example
+```
+
+```
+root@kubernetes-vm:~/workdir# argocd app delete kustomize-gitops-example
+Are you sure you want to delete 'kustomize-gitops-example' and all its resources? [y/n]
+y
+```
+
+Confirme a exclusão respondendo sim no terminal. O aplicativo desaparecerá do painel do Argo CD após alguns minutos.
+
+Agora implante-o novamente.
+
+```
+argocd app create demo \
+--project default \
+--repo https://github.com/codefresh-contrib/gitops-certification-examples \
+--path ./kustomize-app/overlays/staging \
+--sync-policy auto \
+--dest-namespace default \
+--dest-server https://kubernetes.default.svc
+```
+
+```
+root@kubernetes-vm:~/workdir# argocd app create demo \
+> --project default \
+> --repo https://github.com/codefresh-contrib/gitops-certification-examples \
+> --path ./kustomize-app/overlays/staging \
+> --sync-policy auto \
+> --dest-namespace default \
+> --dest-server https://kubernetes.default.svc
+application 'demo' created
+```
+
+O aplicativo aparecerá no painel do ArgoCD.
+
+Confirme a implantação
+
+```
+root@kubernetes-vm:~/workdir# kubectl get all
+NAME                                          READY   STATUS    RESTARTS   AGE
+pod/staging-the-deployment-85c5c7685f-qvg9v   1/1     Running   0          38s
+
+NAME                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+service/kubernetes     ClusterIP   10.43.0.1       <none>        443/TCP          11m
+service/staging-demo   NodePort    10.43.220.101   <none>        8080:31000/TCP   38s
+
+NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/staging-the-deployment   1/1     1            1           38s
+
+NAME                                                DESIRED   CURRENT   READY   AGE
+replicaset.apps/staging-the-deployment-85c5c7685f   1         1         1       38s
+```
+
+Terminar
+Se você confirmou a implantação, clique em Verificar para concluir esta faixa.
+
+# 09 Blue/Green deployments
+
+Bem-vindo
+Nosso aplicativo de exemplo pode ser encontrado em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/blue-green-app.
+
+É um aplicativo muito simples com uma implantação e um serviço. Observe que a implantação foi convertida em um Rollout e tem uma seção extra sobre as opções de implantação azul/verde.
+
+Você também pode ver o código-fonte completo em source-code-canary se quiser entender como o aplicativo está renderizando uma página da Web.
+
+Quando estiver pronto para prosseguir, pressione Avançar.
+
+# Install the Argo Rollouts controller
+
+Antes de começarmos com a entrega progressiva, precisamos instalar o controlador Argo Rollouts no cluster.
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+A interface do usuário começa vazia porque nada é implantado em nosso cluster. Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes:
+
+application name : argo-rollouts-controller
+project: default
+SYNC POLICY: automatic
+AUTO-CREATE Namespace: enabled
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./argo-rollouts-controller
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: argo-rollouts
+
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar. O controlador será instalado no cluster.
+
+Observe que não estamos usando o namespace padrão, mas um novo. É imperativo que você selecione a opção "auto-criar namespace".
+
+Se você não selecionar essa opção, o ArgoCD não encontrará o namespace e a implantação falhará. Exclua o aplicativo e crie-o novamente se tiver um problema de implantação.
+
+Você também pode fazer manualmente se esqueceu na interface do usuário:
+
+```
+kubectl create namespace argo-rollouts
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl create namespace argo-rollouts
+namespace/argo-rollouts created
+```
+Tente sincronizar novamente o aplicativo.
+
+Você pode ver que o GitOps não é útil apenas para seus próprios aplicativos, mas também para outros aplicativos de suporte.
+
+Aguarde algum tempo até que o controlador esteja totalmente sincronizado e a implantação seja marcada como Saudável.
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# The first deployment
+
+O controlador Argo Rollouts está sendo executado agora no cluster e está pronto para lidar com implantações.
+
+Vamos implantar nosso aplicativo. Como esta é a primeira implantação, não há versão anterior e, portanto, ocorrerá uma implantação normal.
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes
+
+
+application name : demo
+project: default
+SYNC POLICY: Manual
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./blue-green-app
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: default
+
+
+Deixe todos os outros valores vazios ou com seleções padrão.
+
+Por fim, clique no botão Criar. A entrada do aplicativo aparecerá no painel principal. Clique nisso.
+
+O aplicativo será inicialmente "Fora de Sincronização". Pressione o botão de sincronização para sincronizá-lo e aguarde até que esteja íntegro.
+
+O aplicativo é implantado e você pode vê-lo na guia "Tráfego ao vivo". Você deve ver o seguinte.
+
+O Argo Rollouts também possui uma CLI opcional que pode ser usada para monitorar e promover implantações
+
+Já instalamos os lançamentos do kubectl argo para você neste exercício. E podemos usá-lo para monitorar a primeira implantação
+
+Execute o seguinte
+
+```
+kubectl argo rollouts list rollouts
+kubectl argo rollouts status simple-rollout
+kubectl argo rollouts get rollout simple-rollout
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl argo rollouts list rollouts
+NAME            STRATEGY   STATUS        STEP  SET-WEIGHT  READY  DESIRED  UP-TO-DATE  AVAILABLE
+simple-rollout  BlueGreen  Healthy       -     -           2/2    2        2           2 
+
+root@kubernetes-vm:~/workdir# kubectl argo rollouts status simple-rollout
+Healthy
+
+root@kubernetes-vm:~/workdir# kubectl argo rollouts get rollout simple-rollout
+Name:            simple-rollout
+Namespace:       default
+Status:          ✔ Healthy
+Strategy:        BlueGreen
+Images:          docker.io/kostiscodefresh/gitops-canary-app:v1.0 (stable, active)
+Replicas:
+  Desired:       2
+  Current:       2
+  Updated:       2
+  Ready:         2
+  Available:     2
+
+NAME                                       KIND        STATUS     AGE  INFO
+⟳ simple-rollout                           Rollout     ✔ Healthy  56s  
+└──# revision:1                                                        
+   └──⧉ simple-rollout-b68b5bffb           ReplicaSet  ✔ Healthy  56s  stable,active
+      ├──□ simple-rollout-b68b5bffb-2zpbs  Pod         ✔ Running  56s  ready:1/1
+      └──□ simple-rollout-b68b5bffb-4rx6l  Pod         ✔ Running  56s  ready:1/1
+```
+
+O último comando mostra o status da distribuição. Como esta é a primeira versão, há apenas um conjunto de réplicas com dois pods.
+
+Você também pode ver isso com
+
+```
+kubectl get rs
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl get rs
+NAME                       DESIRED   CURRENT   READY   AGE
+simple-rollout-b68b5bffb   2         2         2       86s
+```
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# Blue/Green deployments
+
+Agora estamos prontos para ter uma implantação azul/verde com a próxima versão.
+
+Altere a imagem do contêiner do lançamento para a próxima versão com:
+
+```
+kubectl argo rollouts set image simple-rollout webserver-simple=docker.io/kostiscodefresh/gitops-canary-app:v2.0
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl argo rollouts set image simple-rollout webserver-simple=docker.io/kostiscodefresh/gitops-canary-app:v2.0
+rollout "simple-rollout" image updated
+```
+
+Estamos usando o kubectl apenas para fins de ilustração. Normalmente você deve seguir os princípios do GitOps e realizar um commit no repositório Git do aplicativo. Mas apenas para este exercício faremos todas as ações manualmente para que você tenha tempo de ver o que acontece.
+
+Digite o seguinte para ver o que o Argo Rollouts está fazendo nos bastidores
+
+```
+kubectl argo rollouts get rollout simple-rollout
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl argo rollouts get rollout simple-rollout
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         BlueGreenPause
+Strategy:        BlueGreen
+Images:          docker.io/kostiscodefresh/gitops-canary-app:v1.0 (stable, active)
+                 docker.io/kostiscodefresh/gitops-canary-app:v2.0 (preview)
+Replicas:
+  Desired:       2
+  Current:       4
+  Updated:       2
+  Ready:         2
+  Available:     2
+
+NAME                                        KIND        STATUS     AGE    INFO
+⟳ simple-rollout                            Rollout     ॥ Paused   3m28s  
+├──# revision:2                                                           
+│  └──⧉ simple-rollout-597df99d85           ReplicaSet  ✔ Healthy  51s    preview
+│     ├──□ simple-rollout-597df99d85-87m6n  Pod         ✔ Running  51s    ready:1/1
+│     └──□ simple-rollout-597df99d85-qjfjl  Pod         ✔ Running  51s    ready:1/1
+└──# revision:1                                                           
+   └──⧉ simple-rollout-b68b5bffb            ReplicaSet  ✔ Healthy  3m28s  stable,active
+      ├──□ simple-rollout-b68b5bffb-2zpbs   Pod         ✔ Running  3m28s  ready:1/1
+      └──□ simple-rollout-b68b5bffb-4rx6l   Pod         ✔ Running  3m28s  ready:1/1
+```
+
+Em seguida, monitore novamente o lançamento com
+
+```
+kubectl argo rollouts get rollout simple-rollout --watch
+```
+
+```
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         BlueGreenPause
+Strategy:        BlueGreen
+Images:          docker.io/kostiscodefresh/gitops-canary-app:v1.0 (stable, active)
+                 docker.io/kostiscodefresh/gitops-canary-app:v2.0 (preview)
+Replicas:
+  Desired:       2
+  Current:       4
+  Updated:       2
+  Ready:         2
+  Available:     2
+
+NAME                                        KIND        STATUS     AGE    INFO
+⟳ simple-rollout                            Rollout     ॥ Paused   5m8s   
+├──# revision:2                                                           
+│  └──⧉ simple-rollout-597df99d85           ReplicaSet  ✔ Healthy  2m31s  preview
+│     ├──□ simple-rollout-597df99d85-87m6n  Pod         ✔ Running  2m31s  ready:1/1
+│     └──□ simple-rollout-597df99d85-qjfjl  Pod         ✔ Running  2m31s  ready:1/1
+└──# revision:1                                                           
+   └──⧉ simple-rollout-b68b5bffb            ReplicaSet  ✔ Healthy  5m8s   stable,active
+      ├──□ simple-rollout-b68b5bffb-2zpbs   Pod         ✔ Running  5m8s   ready:1/1
+      └──□ simple-rollout-b68b5bffb-4rx6l   Pod         ✔ Running  5m8s   ready:1/1
+```
+
+Depois de um tempo, você verá os pods da versão antiga sendo destruídos.
+
+Agora todo o tráfego ao vivo vai para a nova versão, como pode ser visto na guia "tráfego ao vivo".
+
+A implantação foi concluída com sucesso agora.
+
+Terminar
+Quando estiver pronto para terminar a faixa, pressione Check.
