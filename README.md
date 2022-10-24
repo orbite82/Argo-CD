@@ -1436,3 +1436,607 @@ A implantação foi concluída com sucesso agora.
 
 Terminar
 Quando estiver pronto para terminar a faixa, pressione Check.
+
+# 10 Canary deployments
+
+Entrega progressiva com Argo Rollouts
+O aplicativo de exemplo está em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/canary-app.
+
+Objetivos
+Nesta faixa, isso é o que você aprenderá:
+
+Instalação do controlador Argo Rollouts
+Como instalar um gateway de API
+Como converter uma implantação em um lançamento
+Como executar implantações canário
+Como monitorar o estado da implantação
+Aguarde enquanto inicializamos a VM para você e iniciamos o Kubernetes.
+
+Bem-vindo
+Nosso aplicativo de exemplo pode ser encontrado em https://github.com/codefresh-contrib/gitops-certification-examples/tree/main/canary-app.
+
+É um aplicativo muito simples com uma implantação e um serviço. Observe que a implantação foi convertida em um Rollout e tem uma seção extra sobre as opções de implantação canary.
+
+Você também pode ver o código-fonte completo em source-code-canary se quiser entender como o aplicativo está renderizando uma página da Web.
+
+Quando estiver pronto para prosseguir, pressione Avançar.
+
+# Install the Argo Rollouts controller
+
+Antes de começarmos com a entrega progressiva, precisamos instalar o controlador Argo Rollouts no cluster.
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+A interface do usuário começa vazia porque nada é implantado em nosso cluster. Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes:
+
+application name : argo-rollouts-controller
+project: default
+SYNC POLICY: automatic
+AUTO-CREATE Namespace: enabled
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./argo-rollouts-controller
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: argo-rollouts
+
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar. O controlador será instalado no cluster.
+
+Observe que não estamos usando o namespace padrão, mas um novo. É imperativo que você selecione a opção "auto-criar namespace".
+
+
+Se você não selecionar essa opção, o ArgoCD não encontrará o namespace e a implantação falhará. Exclua o aplicativo e crie-o novamente se tiver um problema de implantação.
+
+Você também pode fazer manualmente se esqueceu na interface do usuário:
+
+```
+kubectl create namespace argo-rollouts
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl create namespace argo-rollouts
+namespace/argo-rollouts created
+```
+
+Tente sincronizar novamente o aplicativo.
+
+Você pode ver que o GitOps não é útil apenas para seus próprios aplicativos, mas também para outros aplicativos de suporte.
+
+Aguarde algum tempo até que o controlador esteja totalmente sincronizado e a implantação seja marcada como Saudável.
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# Install Ambassador
+
+As implantações Blue/Green podem funcionar em qualquer cluster vanilla do Kubernetes. Mas para implantações Canary, você precisa de uma camada de serviço inteligente que possa deslocar gradualmente o tráfego para os pods canary, mantendo o restante do tráfego para os pods antigos/estáveis.
+
+Argo Rollouts suporta várias malhas de serviço e gateways para esta finalidade.
+
+Nesta lição, usaremos o popular Ambassador API Gateway for Kubernetes para dividir o tráfego ao vivo entre a versão canário e a versão antiga/estável.
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes:
+
+application name : ambassador
+project: default
+SYNC POLICY: automatic
+AUTO-CREATE Namespace: enabled
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./ambassador-chart
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: ambassador
+
+Deixe todos os outros valores vazios ou com seleções padrão. Por fim, clique no botão Criar. O Ambassador Gateway será instalado no cluster.
+
+Observe que não estamos usando o namespace padrão, mas um novo. É imperativo que você selecione a opção "auto-criar namespace".
+
+
+Se você não selecionar essa opção, o ArgoCD não encontrará o namespace e a implantação falhará. Exclua o aplicativo e crie-o novamente se tiver um problema de implantação.
+
+Você também pode fazer manualmente se esqueceu na interface do usuário:
+
+```
+kubectl create namespace ambassador
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl create namespace ambassador
+namespace/ambassador created
+```
+
+
+Tente sincronizar novamente o aplicativo.
+
+Novamente, você pode ver que o GitOps não é útil apenas para seus próprios aplicativos, mas também para outros aplicativos de suporte.
+
+Aguarde algum tempo até que o gateway esteja totalmente sincronizado e a implantação seja marcada como Saudável.
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# The first deployment
+
+O controlador Argo Rollouts está sendo executado agora no cluster e está pronto para lidar com implantações.
+
+Vamos implantar nosso aplicativo. Como esta é a primeira implantação, não há versão anterior e, portanto, ocorrerá uma implantação normal.
+
+Instalamos o Argo CD para você e você pode fazer login na guia UI.
+
+Clique no botão "Novo aplicativo" no canto superior esquerdo e preencha os seguintes detalhes
+
+Click the "New app" button on the top left and fill the following details
+
+application name : demo
+project: default
+SYNC POLICY: Manual
+repository URL: https://github.com/codefresh-contrib/gitops-certification-examples
+path: ./canary-app
+Cluster: https://kubernetes.default.svc (this is the same cluster where ArgoCD is installed)
+Namespace: default
+
+
+Deixe todos os outros valores vazios ou com seleções padrão.
+
+Por fim, clique no botão Criar. A entrada do aplicativo aparecerá no painel principal. Clique nisso.
+
+O aplicativo será inicialmente "Fora de Sincronização". Pressione o botão de sincronização para sincronizá-lo e aguarde até que esteja íntegro.
+
+O aplicativo é implantado e você pode vê-lo na guia "Tráfego ao vivo". Você deve ver o seguinte.
+
+O Argo Rollouts também possui uma CLI opcional que pode ser usada para monitorar e promover implantações
+
+Já instalamos os lançamentos do kubectl argo para você neste exercício. E podemos usá-lo para monitorar a primeira implantação
+
+Execute o seguinte
+
+```
+kubectl argo rollouts list rollouts
+kubectl argo rollouts status simple-rollout
+kubectl argo rollouts get rollout simple-rollout
+```
+
+```
+root@kubernetes-vm:~/workdir# kubectl argo rollouts list rollouts
+NAME            STRATEGY   STATUS        STEP  SET-WEIGHT  READY  DESIRED  UP-TO-DATE  AVAILABLE
+simple-rollout  Canary     Healthy       6/6   100         10/10  10       10          10       
+root@kubernetes-vm:~/workdir# kubectl argo rollouts status simple-rollout
+Healthy
+root@kubernetes-vm:~/workdir# kubectl argo rollouts get rollout simple-rollout
+Name:            simple-rollout
+Namespace:       default
+Status:          ✔ Healthy
+Strategy:        Canary
+  Step:          6/6
+  SetWeight:     100
+  ActualWeight:  100
+Images:          docker.io/kostiscodefresh/gitops-canary-app:v1.0 (stable)
+Replicas:
+  Desired:       10
+  Current:       10
+  Updated:       10
+  Ready:         10
+  Available:     10
+
+NAME                                        KIND        STATUS     AGE    INFO
+⟳ simple-rollout                            Rollout     ✔ Healthy  2m37s  
+└──# revision:1                                                           
+   └──⧉ simple-rollout-67df66795d           ReplicaSet  ✔ Healthy  2m10s  stable
+      ├──□ simple-rollout-67df66795d-4dlmd  Pod         ✔ Running  2m10s  ready:1/1
+      ├──□ simple-rollout-67df66795d-jpbr6  Pod         ✔ Running  2m10s  ready:1/1
+      ├──□ simple-rollout-67df66795d-w7274  Pod         ✔ Running  2m10s  ready:1/1
+      ├──□ simple-rollout-67df66795d-27sv5  Pod         ✔ Running  2m9s   ready:1/1
+      ├──□ simple-rollout-67df66795d-hrznt  Pod         ✔ Running  2m9s   ready:1/1
+      ├──□ simple-rollout-67df66795d-8fsvs  Pod         ✔ Running  2m8s   ready:1/1
+      ├──□ simple-rollout-67df66795d-fxdn7  Pod         ✔ Running  2m8s   ready:1/1
+      ├──□ simple-rollout-67df66795d-lxqq6  Pod         ✔ Running  2m8s   ready:1/1
+      ├──□ simple-rollout-67df66795d-mbtcd  Pod         ✔ Running  2m8s   ready:1/1
+      └──□ simple-rollout-67df66795d-n6w9k  Pod         ✔ Running  2m8s   ready:1/1
+```
+
+O último comando mostra o status da distribuição. Como esta é a primeira versão, há apenas um conjunto de réplicas com dez pods.
+
+Você também pode ver isso com
+
+```
+root@kubernetes-vm:~/workdir# kubectl get rs
+NAME                        DESIRED   CURRENT   READY   AGE
+simple-rollout-67df66795d   10        10        10      3m33s
+
+root@kubernetes-vm:~/workdir# kubectl get rs
+NAME                        DESIRED   CURRENT   READY   AGE
+simple-rollout-67df66795d   10        10        10      5m16s
+```
+
+Quando estiver pronto para prosseguir, pressione Verificar.
+
+# Canary deployments
+
+Agora estamos prontos para ter uma implantação Canary com a próxima versão.
+
+Altere a imagem do contêiner do lançamento para a próxima versão com:
+
+root@kubernetes-vm:~/workdir# kubectl argo rollouts set image simple-rollout webserver-simple=docker.io/kostiscodefresh/gitops-canary-app:v2.0
+rollout "simple-rollout" image updated
+
+Estamos usando o kubectl apenas para fins de ilustração. Normalmente você deve seguir os princípios do GitOps e realizar um commit no repositório Git do aplicativo. Mas apenas para este exercício faremos todas as ações manualmente para que você tenha tempo de ver o que acontece.
+
+Digite o seguinte para ver o que o Argo Rollouts está fazendo nos bastidores
+
+```
+root@kubernetes-vm:~/workdir# kubectl argo rollouts get rollout simple-rollout
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+  Step:          1/6
+  SetWeight:     30
+  ActualWeight:  30
+Images:          docker.io/kostiscodefresh/gitops-canary-app:v1.0 (stable)
+                 docker.io/kostiscodefresh/gitops-canary-app:v2.0 (canary)
+Replicas:
+  Desired:       10
+  Current:       13
+  Updated:       3
+  Ready:         13
+  Available:     13
+
+NAME                                        KIND        STATUS     AGE    INFO
+⟳ simple-rollout                            Rollout     ॥ Paused   8m12s  
+├──# revision:2                                                           
+│  └──⧉ simple-rollout-7f9d9f9f8c           ReplicaSet  ✔ Healthy  34s    canary
+│     ├──□ simple-rollout-7f9d9f9f8c-8qkvt  Pod         ✔ Running  34s    ready:1/1
+│     ├──□ simple-rollout-7f9d9f9f8c-p64ff  Pod         ✔ Running  34s    ready:1/1
+│     └──□ simple-rollout-7f9d9f9f8c-rpjd7  Pod         ✔ Running  34s    ready:1/1
+└──# revision:1                                                           
+   └──⧉ simple-rollout-67df66795d           ReplicaSet  ✔ Healthy  7m45s  stable
+      ├──□ simple-rollout-67df66795d-4dlmd  Pod         ✔ Running  7m45s  ready:1/1
+      ├──□ simple-rollout-67df66795d-jpbr6  Pod         ✔ Running  7m45s  ready:1/1
+      ├──□ simple-rollout-67df66795d-w7274  Pod         ✔ Running  7m45s  ready:1/1
+      ├──□ simple-rollout-67df66795d-27sv5  Pod         ✔ Running  7m44s  ready:1/1
+      ├──□ simple-rollout-67df66795d-hrznt  Pod         ✔ Running  7m44s  ready:1/1
+      ├──□ simple-rollout-67df66795d-8fsvs  Pod         ✔ Running  7m43s  ready:1/1
+      ├──□ simple-rollout-67df66795d-fxdn7  Pod         ✔ Running  7m43s  ready:1/1
+      ├──□ simple-rollout-67df66795d-lxqq6  Pod         ✔ Running  7m43s  ready:1/1
+      ├──□ simple-rollout-67df66795d-mbtcd  Pod         ✔ Running  7m43s  ready:1/1
+      └──□ simple-rollout-67df66795d-n6w9k  Pod         ✔ Running  7m43s  ready:1/1
+```
+
+After you change the image the following things happen
+
+Argo Rollouts creates another replicaset with the new version
+The old version is still there and gets live/active traffic
+The canary version gets 30% of the live traffic.
+ArgoCD will mark the application as out-of-sync
+ArgoCD will also mark the health of the application as "suspended" because we have setup the new color to wait
+Notice that even though the next version of our application is already deployed, live traffic goes to both new/old versions. You can verify this by looking at the "live traffic" tab.
+
+Neste ponto, a implantação é suspensa porque usamos as propriedades de pausa na definição da distribuição.
+
+Para promover manualmente a implantação e mudar 60% para a nova versão, digite:
+
+```
+root@kubernetes-vm:~/workdir# kubectl argo rollouts promote simple-rollout
+rollout 'simple-rollout' promoted
+```
+
+Em seguida, monitore novamente o lançamento com
+
+```
+root@kubernetes-vm:~/workdir# kubectl argo rollouts get rollout simple-rollout
+Name:            simple-rollout
+Namespace:       default
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+  Step:          3/6
+  SetWeight:     60
+  ActualWeight:  60
+Images:          docker.io/kostiscodefresh/gitops-canary-app:v1.0 (stable)
+                 docker.io/kostiscodefresh/gitops-canary-app:v2.0 (canary)
+Replicas:
+  Desired:       10
+  Current:       16
+  Updated:       6
+  Ready:         16
+  Available:     16
+
+NAME                                        KIND        STATUS     AGE   INFO
+⟳ simple-rollout                            Rollout     ॥ Paused   12m   
+├──# revision:2                                                          
+│  └──⧉ simple-rollout-7f9d9f9f8c           ReplicaSet  ✔ Healthy  5m5s  canary
+│     ├──□ simple-rollout-7f9d9f9f8c-8qkvt  Pod         ✔ Running  5m5s  ready:1/1
+│     ├──□ simple-rollout-7f9d9f9f8c-p64ff  Pod         ✔ Running  5m5s  ready:1/1
+│     ├──□ simple-rollout-7f9d9f9f8c-rpjd7  Pod         ✔ Running  5m5s  ready:1/1
+│     ├──□ simple-rollout-7f9d9f9f8c-4z9bn  Pod         ✔ Running  63s   ready:1/1
+│     ├──□ simple-rollout-7f9d9f9f8c-n77pv  Pod         ✔ Running  63s   ready:1/1
+│     └──□ simple-rollout-7f9d9f9f8c-vw57w  Pod         ✔ Running  63s   ready:1/1
+└──# revision:1                                                          
+   └──⧉ simple-rollout-67df66795d           ReplicaSet  ✔ Healthy  12m   stable
+      ├──□ simple-rollout-67df66795d-4dlmd  Pod         ✔ Running  12m   ready:1/1
+
+root@kubernetes-vm:~/workdir# kubectl argo rollouts get rollout simple-rollout
+Name:            simple-rollout
+Namespace:       default
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+Name:            simple-rollout
+Namespace:       default
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+  Step:          3/6
+  SetWeight:     60
+  ActualWeight:  60
+Images:          docker.io/kostiscodefresh/gitops-canary-app:v1.0 (stable)
+                 docker.io/kostiscodefresh/gitops-canary-app:v2.0 (canary)
+Replicas:
+  Desired:       10
+  Current:       16
+  Updated:       6
+  Ready:         16
+  Available:     16
+
+NAME                                        KIND        STATUS     AGE    INFO
+⟳ simple-rollout                            Rollout     ॥ Paused   13m    
+├──# revision:2                                                           
+│  └──⧉ simple-rollout-7f9d9f9f8c           ReplicaSet  ✔ Healthy  5m34s  canary
+│     ├──□ simple-rollout-7f9d9f9f8c-8qkvt  Pod         ✔ Running  5m34s  ready:1/1
+│     ├──□ simple-rollout-7f9d9f9f8c-p64ff  Pod         ✔ Running  5m34s  ready:1/1
+│     ├──□ simple-rollout-7f9d9f9f8c-rpjd7  Pod         ✔ Running  5m34s  ready:1/1
+
+```
+
+Repita o mesmo processo mais três vezes para enviar 100% para a versão canário. Observe que em cada etapa você também pode ver as guias "estável" e "instável" e pode ver que pode manter as versões antigas e novas em jogo. Isso é útil se, por algum motivo, você tiver outros aplicativos no cluster que sempre precisam ser apontados para a versão antiga ou nova enquanto um canário está em andamento.
+
+Depois de um tempo, você verá os pods da versão antiga sendo destruídos.
+
+Agora todo o tráfego ao vivo vai para a nova versão, como pode ser visto na guia "tráfego ao vivo".
+
+A implantação foi concluída com sucesso agora.
+
+Terminar
+Quando estiver pronto para terminar a faixa, pressione Check.
